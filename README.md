@@ -16,11 +16,11 @@ A high-performance, **Agentic AI** system designed to automate customer support 
 
 The heart of this system is a 10-node directed graph. Each step is carefully designed to ensure safety, accuracy, and efficiency.
 
-### 1. 🔍 Email Retrieval
+### 🔍 1.  Email Retrieval
 - **Significance**: The entry point. It pulls raw email from the database and initializes the Agent's state. 
 - **Necessity**: Without this, the agent has no context on the sender or subject.
 
-### 2. 🛡️ Guardrails
+###  🛡️ 2. Guardrails
 - **Significance**: Safety and Compliance layer.
 - **Necessity**: Screens for PII, toxicity, or inappropriate requests *before* LLM processing to protect brand and privacy.
 
