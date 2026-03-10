@@ -1,0 +1,30 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+
+# Database
+emails.db
+emails.db-journal
+emails.db-shm
+emails.db-wal
+
+# Vector Store
+faiss_index/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

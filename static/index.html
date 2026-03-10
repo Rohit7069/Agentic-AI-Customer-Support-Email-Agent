@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Support Email Agent — AI Dashboard</title>
+    <meta name="description" content="Agentic AI Customer Support Email Agent powered by LangGraph, FAISS, and OpenAI">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- ─── Header ─── -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <div class="logo-text">
+                    <h1>Email Agent</h1>
+                    <p>Agentic AI Customer Support</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <button id="themeToggle" class="btn-refresh" title="Toggle Light/Dark Theme">
+                    🌓 Theme
+                </button>
+                <div id="healthBadge" class="health-badge">
+                    <span class="dot"></span> Checking...
+                </div>
+            </div>
+        </header>
+
+        <!-- ─── Stats Grid ─── -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📨</div>
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-label">Emails Processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-value" id="statAuto">0</div>
+                <div class="stat-label">Auto-Resolved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👁</div>
+                <div class="stat-value" id="statReview">0</div>
+                <div class="stat-label">Human Reviewed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value" id="statFollowup">0</div>
+                <div class="stat-label">Follow-ups</div>
+            </div>
+        </div>
+
+        <!-- ─── Tab Navigation ─── -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="compose" onclick="switchTab('compose')">
+                ✉️ Compose Email
+            </button>
+            <button class="tab-btn" data-tab="reviews" onclick="switchTab('reviews')">
+                👁 Reviews
+            </button>
+            <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+                📋 History
+            </button>
+        </nav>
+
+        <!-- ═════════════════════════════════════ -->
+        <!-- TAB: Compose Email                    -->
+        <!-- ═════════════════════════════════════ -->
+        <div id="compose" class="tab-panel active">
+
+            <!-- Pipeline Visualization -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-title"><span class="icon">🔄</span> Processing Pipeline</div>
+                <div class="pipeline-flow">
+                    <div class="pipeline-node" id="node-retrieve">
+                        <div class="node-icon">📥</div>
+                        <span class="node-label">Retrieve</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-classify">
+                        <div class="node-icon">🏷️</div>
+                        <span class="node-label">Classify</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-context">
+                        <div class="node-icon">🔍</div>
+                        <span class="node-label">Context</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-review_check">
+                        <div class="node-icon">⚖️</div>
+                        <span class="node-label">Review Check</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-generate">
+                        <div class="node-icon">✨</div>
+                        <span class="node-label">Generate</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-review_route">
+                        <div class="node-icon">🔀</div>
+                        <span class="node-label">Route</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-human_review">
+                        <div class="node-icon">👤</div>
+                        <span class="node-label">Review</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-send">
+                        <div class="node-icon">📤</div>
+                        <span class="node-label">Send</span>
+                    </div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-node" id="node-followup">
+                        <div class="node-icon">📅</div>
+                        <span class="node-label">Follow-up</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Form -->
+            <div class="card">
+                <div class="card-title"><span class="icon">✉️</span> Compose Test Email</div>
+                <form onsubmit="submitEmail(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="sender">Sender Email</label>
+                            <input type="email" id="sender" placeholder="customer@example.com"
+                                value="customer@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject">Subject</label>
+                            <input type="text" id="subject" placeholder="e.g., Files not syncing" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="body">Email Body</label>
+                            <textarea id="body" placeholder="Describe the customer's issue or inquiry..."
+                                required></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn" id="submitBtn">
+                            <span class="spinner"></span>
+                            <span class="btn-text">🚀 Process Email</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Result Panel -->
+                <div class="result-panel" id="resultPanel">
+                    <div class="result-header">
+                        <h3>✅ Processing Complete</h3>
+                        <div>
+                            <span class="processing-time" id="processingTime"></span>
+                            <span class="processing-time" id="confidenceScore"
+                                style="display:none; margin-left: 8px;"></span>
+                        </div>
+                    </div>
+                    <div class="result-badges" id="resultBadges"></div>
+                    <div class="response-box" id="responseBox" style="display:none;">
+                        <h4>🤖 AI-Generated Response</h4>
+                        <p id="responseText"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════════════════════════════════════ -->
+        <!-- TAB: Reviews                          -->
+        <!-- ═════════════════════════════════════ -->
+        <div id="reviews" class="tab-panel">
+            <div class="card">
+                <div class="card-title"
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                    <span><span class="icon">👁</span> Pending Human Reviews</span>
+                    <div
+                        style="display: flex; gap: 12px; flex-grow: 1; max-width: 600px; justify-content: flex-end; align-items: center;">
+                        <input type="text" id="searchReviews" placeholder="Search sender or subject..."
+                            class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); flex-grow: 1; outline: none; margin-bottom: 0; font-size: 13px;">
+                        <select id="filterReviewReason" class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
+                            <option value="">All Reasons</option>
+                            <option value="inquiry">Inquiry</option>
+                            <option value="complaint">Complaint</option>
+                            <option value="refund">Refund</option>
+                            <option value="technical">Technical</option>
+                        </select>
+                        <button class="btn-refresh" onclick="loadPendingReviews()">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div id="reviewsList">
+                    <div class="reviews-empty">
+                        <div class="empty-icon">⏳</div>
+                        <p>Loading reviews...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════════════════════════════════════ -->
+        <!-- TAB: History                          -->
+        <!-- ═════════════════════════════════════ -->
+        <div id="history" class="tab-panel">
+            <div class="card">
+                <div class="card-title"
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                    <span><span class="icon">📋</span> Processing History</span>
+                    <div
+                        style="display: flex; gap: 12px; flex-grow: 1; max-width: 800px; justify-content: flex-end; align-items: center;">
+                        <input type="text" id="searchHistory" placeholder="Search sender, subject, or ID..."
+                            class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); flex-grow: 1; outline: none; margin-bottom: 0; font-size: 13px;">
+
+                        <select id="filterHistoryCategory" class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
+                            <option value="">All Categories</option>
+                            <option value="inquiry">Inquiry</option>
+                            <option value="complaint">Complaint</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="other">Other</option>
+                        </select>
+
+                        <select id="filterHistoryPriority" class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
+                            <option value="">All Priorities</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+
+                        <select id="filterHistoryStatus" class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
+                            <option value="">All Statuses</option>
+                            <option value="completed">Completed</option>
+                            <option value="needs_review">Needs Review</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                </div>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Sender</th>
+                            <th>Subject</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr>
+                            <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 40px;">
+                                No emails processed yet
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="emailDetailsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">📧 Email Details</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div style="text-align: center; color: var(--text-muted); padding: 40px;">Loading details...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
