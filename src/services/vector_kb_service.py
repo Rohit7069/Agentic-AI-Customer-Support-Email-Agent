@@ -4,7 +4,7 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 import numpy as np
-from openai import OpenAI
+from langchain_openai import OpenAIEmbeddings
 from src.config import settings
 from src.services.base import BaseService
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class VectorKBService(BaseService):
-    """Vector-based knowledge base using FAISS + OpenAI embeddings."""
+    """Vector-based knowledge base using FAISS + LangChain OpenAI embeddings."""
 
     EMBEDDING_DIMENSIONS = {
         "text-embedding-3-small": 1536,
@@ -27,13 +27,17 @@ class VectorKBService(BaseService):
         self.faiss_index = None
         self.documents: Dict[int, Dict[str, Any]] = {}
         self.doc_counter = 0
-        self.client = None
+        self.embeddings = None
 
     async def initialize(self) -> None:
-        """Initialize with OpenAI client and FAISS index."""
+        """Initialize with OpenAI embeddings and FAISS index."""
         import faiss
 
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.embeddings = OpenAIEmbeddings(
+            model=self.embedding_model,
+            openai_api_key=settings.OPENAI_API_KEY
+        )
+        
         embedding_dim = self.EMBEDDING_DIMENSIONS.get(
             self.embedding_model, 1536
         )
@@ -156,10 +160,6 @@ class VectorKBService(BaseService):
         return "\n\n".join(context_parts)
 
     async def _get_embedding(self, text: str) -> np.ndarray:
-        """Get OpenAI embedding for text."""
-        response = self.client.embeddings.create(
-            model=self.embedding_model,
-            input=text,
-        )
-        embedding = response.data[0].embedding
+        """Get OpenAI embedding for text using LangChain."""
+        embedding = await self.embeddings.aembed_query(text)
         return np.array([embedding], dtype=np.float32)

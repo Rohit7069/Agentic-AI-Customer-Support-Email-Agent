@@ -1,4 +1,3 @@
-"""Entry point for the Customer Support Email Agent."""
 import uvicorn
 from src.config import settings
 from src.api.app import create_app

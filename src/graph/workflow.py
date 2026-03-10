@@ -17,6 +17,7 @@ def create_workflow(nodes: dict):
 
     # Add all nodes
     workflow.add_node("email_retrieval", nodes["email_retrieval"])
+    workflow.add_node("guardrails", nodes["guardrails"])
     workflow.add_node("classification", nodes["classification"])
     workflow.add_node("context_analysis", nodes["context_analysis"])
     workflow.add_node("review_check", nodes["review_check"])
@@ -31,10 +32,22 @@ def create_workflow(nodes: dict):
     workflow.set_entry_point("email_retrieval")
 
     # Define edges
-    workflow.add_conditional_edges(
-        "email_retrieval",
-        lambda state: "classification" if not state.get("error_message") else "error_handler",
-    )
+    def route_after_retrieval(state) -> Literal["guardrails", "error_handler"]:
+        if state.get("error_message"):
+            return "error_handler"
+        return "guardrails"
+
+    workflow.add_conditional_edges("email_retrieval", route_after_retrieval)
+
+    def route_after_guardrails(state) -> Literal["classification", "error_handler", "review_routing"]:
+        if state.get("error_message"):
+            return "error_handler"
+        if state.get("needs_human_review"):
+            # If safety flagged, skip to review routing
+            return "review_routing"
+        return "classification"
+
+    workflow.add_conditional_edges("guardrails", route_after_guardrails)
 
     workflow.add_conditional_edges(
         "classification",

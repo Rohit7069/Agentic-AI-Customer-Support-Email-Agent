@@ -79,14 +79,24 @@
             <div class="card" style="margin-bottom: 24px;">
                 <div class="card-title"><span class="icon">🔄</span> Processing Pipeline</div>
                 <div class="pipeline-flow">
+                    <!-- Node 1: Retrieval -->
                     <div class="pipeline-node" id="node-retrieve">
                         <div class="node-icon">📥</div>
-                        <span class="node-label">Retrieve</span>
+                        <div class="node-label">Retrieval</div>
                     </div>
-                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-arrow"></div>
+
+                    <!-- Node 2: Guardrails -->
+                    <div class="pipeline-node" id="node-guardrails">
+                        <div class="node-icon">🛡️</div>
+                        <div class="node-label">Guardrails</div>
+                    </div>
+                    <div class="pipeline-arrow"></div>
+
+                    <!-- Node 3: Classification -->
                     <div class="pipeline-node" id="node-classify">
-                        <div class="node-icon">🏷️</div>
-                        <span class="node-label">Classify</span>
+                        <div class="node-icon">📂</div>
+                        <div class="node-label">Classify</div>
                     </div>
                     <span class="pipeline-arrow">→</span>
                     <div class="pipeline-node" id="node-context">
@@ -187,10 +197,6 @@
                         <select id="filterReviewReason" class="form-group"
                             style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
                             <option value="">All Reasons</option>
-                            <option value="inquiry">Inquiry</option>
-                            <option value="complaint">Complaint</option>
-                            <option value="refund">Refund</option>
-                            <option value="technical">Technical</option>
                         </select>
                         <button class="btn-refresh" onclick="loadPendingReviews()">🔄 Refresh</button>
                     </div>
@@ -221,27 +227,23 @@
                         <select id="filterHistoryCategory" class="form-group"
                             style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
                             <option value="">All Categories</option>
-                            <option value="inquiry">Inquiry</option>
-                            <option value="complaint">Complaint</option>
-                            <option value="feedback">Feedback</option>
-                            <option value="other">Other</option>
                         </select>
 
                         <select id="filterHistoryPriority" class="form-group"
                             style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
                             <option value="">All Priorities</option>
-                            <option value="urgent">Urgent</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
                         </select>
 
                         <select id="filterHistoryStatus" class="form-group"
                             style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
                             <option value="">All Statuses</option>
-                            <option value="completed">Completed</option>
-                            <option value="needs_review">Needs Review</option>
-                            <option value="failed">Failed</option>
+                        </select>
+
+                        <select id="filterHistoryType" class="form-group"
+                            style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); outline: none; margin-bottom: 0; font-size: 13px; cursor: pointer;">
+                            <option value="">All Types</option>
+                            <option value="human">🧑 Human</option>
+                            <option value="auto">🤖 Auto</option>
                         </select>
                     </div>
                 </div>
@@ -254,6 +256,7 @@
                             <th>Category</th>
                             <th>Priority</th>
                             <th>Status</th>
+                            <th>Type</th>
                         </tr>
                     </thead>
                     <tbody id="historyBody">

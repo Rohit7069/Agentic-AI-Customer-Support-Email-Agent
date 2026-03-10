@@ -77,6 +77,7 @@ class HistoryItemResponse(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     status: str
+    is_human_reviewed: bool = False
 
 class HistoryResponse(BaseModel):
     stats: StatsResponse

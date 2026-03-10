@@ -2,7 +2,8 @@
 import json
 import logging
 from typing import Dict, Any
-from openai import AsyncOpenAI
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 from src.config import settings
 from src.services.base import BaseService
 from src.prompts.templates import (
@@ -16,12 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 class LLMService(BaseService):
-    """OpenAI LLM wrapper for classification and response generation."""
+    """LangChain-wrapped OpenAI service for classification and response generation."""
 
     def __init__(self):
         super().__init__()
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_MODEL
+        self.llm = ChatOpenAI(
+            model=settings.OPENAI_MODEL,
+            openai_api_key=settings.OPENAI_API_KEY,
+            temperature=0.1
+        )
 
     async def classify_email(self, subject: str, body: str) -> Dict[str, Any]:
         """Classify email into a category using the LLM."""
@@ -31,17 +35,13 @@ class LLMService(BaseService):
                 email_body=body
             )
 
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT_CUSTOMER_SUPPORT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=100,
-            )
+            messages = [
+                SystemMessage(content=SYSTEM_PROMPT_CUSTOMER_SUPPORT),
+                HumanMessage(content=prompt),
+            ]
 
-            category_raw = response.choices[0].message.content.strip().lower()
+            response = await self.llm.ainvoke(messages)
+            category_raw = response.content.strip().lower()
 
             # Validate category
             valid_categories = [
@@ -70,17 +70,14 @@ class LLMService(BaseService):
         try:
             prompt = PRIORITY_ASSESSMENT_PROMPT.format(email_body=body)
 
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT_CUSTOMER_SUPPORT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=50,
-            )
+            messages = [
+                SystemMessage(content=SYSTEM_PROMPT_CUSTOMER_SUPPORT),
+                HumanMessage(content=prompt),
+            ]
 
-            priority_raw = response.choices[0].message.content.strip().lower()
+            response = await self.llm.ainvoke(messages)
+            priority_raw = response.content.strip().lower()
+            
             valid_priorities = ["low", "medium", "high", "urgent"]
             priority = priority_raw if priority_raw in valid_priorities else "medium"
 
@@ -107,22 +104,29 @@ class LLMService(BaseService):
                 context=context_section,
             )
 
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT_CUSTOMER_SUPPORT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.7,
-                max_tokens=500,
-            )
+            messages = [
+                SystemMessage(content=SYSTEM_PROMPT_CUSTOMER_SUPPORT),
+                HumanMessage(content=prompt),
+            ]
 
-            response_text = response.choices[0].message.content.strip()
-            tokens_used = response.usage.total_tokens if response.usage else 0
+            # Use slightly higher temperature for response generation
+            gen_llm = ChatOpenAI(
+                model=settings.OPENAI_MODEL,
+                openai_api_key=settings.OPENAI_API_KEY,
+                temperature=0.7
+            )
+            response = await gen_llm.ainvoke(messages)
+
+            response_text = response.content.strip()
+            
+            # Extract token metadata if available
+            tokens_used = 0
+            if hasattr(response, 'response_metadata'):
+                tokens_used = response.response_metadata.get('token_usage', {}).get('total_tokens', 0)
 
             return {
                 "response_text": response_text,
-                "model_used": self.model,
+                "model_used": settings.OPENAI_MODEL,
                 "tokens_used": tokens_used,
             }
         except Exception as e:

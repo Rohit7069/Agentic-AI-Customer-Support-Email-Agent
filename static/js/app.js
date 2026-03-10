@@ -9,6 +9,27 @@ let emailHistory = [];
 let allReviews = [];
 let stats = { total: 0, auto: 0, reviewed: 0, followups: 0 };
 
+// ─── Utility: Populate Dropdowns Dynamically ───
+function populateFilter(selectId, data, key, defaultLabel) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    // Save current selection
+    const currentVal = select.value;
+
+    // Get unique non-null values
+    const uniqueVals = [...new Set(data.map(item => item[key]).filter(v => v))].sort();
+
+    // Reset and populate
+    select.innerHTML = `<option value="">${defaultLabel}</option>` +
+        uniqueVals.map(v => `<option value="${v.toLowerCase()}">${v.charAt(0).toUpperCase() + v.slice(1)}</option>`).join('');
+
+    // Restore selection if it still exists
+    if (uniqueVals.map(v => v.toLowerCase()).includes(currentVal)) {
+        select.value = currentVal;
+    }
+}
+
 // ─── DOM Ready ───
 document.addEventListener('DOMContentLoaded', () => {
     checkHealth();
@@ -55,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Filter Logic
-    ['filterReviewReason', 'filterHistoryCategory', 'filterHistoryPriority', 'filterHistoryStatus'].forEach(id => {
+    ['filterReviewReason', 'filterHistoryCategory', 'filterHistoryPriority', 'filterHistoryStatus', 'filterHistoryType'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', () => {
             if (id.includes('Review')) renderReviews();
@@ -113,12 +134,12 @@ async function submitEmail(e) {
     btn.disabled = true;
     resultPanel.classList.remove('visible');
 
-    // Animate pipeline
+    // Animate pipeline starting state
     resetPipeline();
-    animatePipeline();
+    syncPipelineNode('retrieve'); // Start with first node
 
     try {
-        const res = await fetch(`${API_BASE}/api/emails/test`, {
+        const res = await fetch(`${API_BASE}/api/emails/test/stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -129,12 +150,37 @@ async function submitEmail(e) {
             throw new Error(err.detail || `Server error: ${res.status}`);
         }
 
-        const data = await res.json();
-        displayResult(data);
-        completePipeline(data);
-        addToHistory(data, payload);
-        updateStats(data);
-        showToast('Email processed successfully!', 'success');
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Keep last incomplete line
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = JSON.parse(line.slice(6));
+
+                    if (data.node) {
+                        syncPipelineNode(data.node);
+                    } else if (data.complete) {
+                        const finalData = data.result;
+                        displayResult(finalData);
+                        completePipeline(finalData);
+                        addToHistory(finalData, payload);
+                        updateStats(finalData);
+                        showToast('Email processed successfully!', 'success');
+                    } else if (data.error) {
+                        throw new Error(data.error);
+                    }
+                }
+            }
+        }
 
     } catch (err) {
         showToast(err.message || 'Failed to process email', 'error');
@@ -187,31 +233,70 @@ function displayResult(data) {
 
 // ─── Pipeline Animation ───
 const PIPELINE_NODES = [
-    'retrieve', 'classify', 'context', 'review_check',
+    'retrieve', 'guardrails', 'classify', 'context', 'review_check',
     'generate', 'review_route', 'human_review', 'send', 'followup'
 ];
+
+const NODE_MAP = {
+    'email_retrieval': 'retrieve',
+    'guardrails': 'guardrails',
+    'classification': 'classify',
+    'context_analysis': 'context',
+    'review_check': 'review_check',
+    'response_generation': 'generate',
+    'review_routing': 'review_route',
+    'human_review': 'human_review',
+    'response_sending': 'send',
+    'followup_scheduling': 'followup'
+};
+
+function syncPipelineNode(nodeId) {
+    const frontendId = NODE_MAP[nodeId] || nodeId;
+    const nodeIndex = PIPELINE_NODES.indexOf(frontendId);
+
+    if (nodeIndex === -1) return;
+
+    PIPELINE_NODES.forEach((id, i) => {
+        const node = document.getElementById(`node-${id}`);
+        if (!node) return;
+
+        if (i < nodeIndex) {
+            node.className = 'pipeline-node completed';
+        } else if (i === nodeIndex) {
+            node.className = 'pipeline-node active';
+        } else {
+            node.className = 'pipeline-node';
+        }
+    });
+
+    // Handle arrows
+    document.querySelectorAll('.pipeline-arrow').forEach((arrow, i) => {
+        if (i < nodeIndex) {
+            arrow.className = 'pipeline-arrow completed';
+        } else if (i === nodeIndex) {
+            arrow.className = 'pipeline-arrow active';
+        } else {
+            arrow.className = 'pipeline-arrow';
+        }
+    });
+}
 
 function resetPipeline() {
     PIPELINE_NODES.forEach(id => {
         const node = document.getElementById(`node-${id}`);
-        if (node) {
-            node.className = 'pipeline-node';
-        }
+        if (node) node.className = 'pipeline-node';
     });
-    document.querySelectorAll('.pipeline-arrow').forEach(a => a.className = 'pipeline-arrow');
+    document.querySelectorAll('.pipeline-arrow').forEach(arrow => {
+        arrow.className = 'pipeline-arrow';
+    });
 }
 
 function animatePipeline() {
-    PIPELINE_NODES.forEach((id, i) => {
-        setTimeout(() => {
-            const node = document.getElementById(`node-${id}`);
-            if (node) node.classList.add('active');
-        }, i * 400);
-    });
+    // No longer used, replaced by real-time syncPipelineNode
 }
 
 function completePipeline(data) {
-    const activeNodes = ['retrieve', 'classify', 'context', 'review_check', 'generate'];
+    const activeNodes = ['retrieve', 'guardrails', 'classify', 'context', 'review_check', 'generate'];
     if (data.needs_human_review) {
         activeNodes.push('review_route', 'human_review');
     }
@@ -253,8 +338,14 @@ async function loadHistoryAndStats() {
             subject: e.subject,
             category: e.category,
             priority: e.priority,
-            status: e.status
+            status: e.status,
+            is_human_reviewed: e.is_human_reviewed
         }));
+
+        // Dynamically populate history filters
+        populateFilter('filterHistoryCategory', emailHistory, 'category', 'All Categories');
+        populateFilter('filterHistoryPriority', emailHistory, 'priority', 'All Priorities');
+        populateFilter('filterHistoryStatus', emailHistory, 'status', 'All Statuses');
 
         renderHistory();
     } catch (e) {
@@ -270,6 +361,7 @@ function addToHistory(data, payload) {
         category: data.category,
         priority: data.priority,
         status: data.status,
+        is_human_reviewed: data.needs_human_review, // For test/live updates, we know if it needed review
         time: new Date().toLocaleTimeString(),
     });
     if (emailHistory.length > 50) emailHistory.pop();
@@ -282,6 +374,7 @@ function renderHistory() {
     const filterCat = document.getElementById('filterHistoryCategory')?.value.toLowerCase() || '';
     const filterPri = document.getElementById('filterHistoryPriority')?.value.toLowerCase() || '';
     const filterSta = document.getElementById('filterHistoryStatus')?.value.toLowerCase() || '';
+    const filterType = document.getElementById('filterHistoryType')?.value.toLowerCase() || '';
 
     const filtered = emailHistory.filter(e => {
         const matchesSearch = e.sender.toLowerCase().includes(searchTerm) ||
@@ -292,11 +385,15 @@ function renderHistory() {
         const matchesPri = !filterPri || (e.priority && e.priority.toLowerCase() === filterPri);
         const matchesSta = !filterSta || (e.status && e.status.toLowerCase().includes(filterSta.replace('_', ' ')));
 
-        return matchesSearch && matchesCat && matchesPri && matchesSta;
+        let matchesType = true;
+        if (filterType === 'human') matchesType = e.is_human_reviewed;
+        else if (filterType === 'auto') matchesType = !e.is_human_reviewed;
+
+        return matchesSearch && matchesCat && matchesPri && matchesSta && matchesType;
     });
 
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 40px;">${(searchTerm || filterCat || filterPri || filterSta) ? 'No matching results' : 'No emails processed yet'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--text-muted); padding: 40px;">${(searchTerm || filterCat || filterPri || filterSta || filterType) ? 'No matching results' : 'No emails processed yet'}</td></tr>`;
         return;
     }
     tbody.innerHTML = filtered.map(e => `
@@ -307,6 +404,7 @@ function renderHistory() {
             <td><span class="badge badge-category">${e.category || '-'}</span></td>
             <td><span class="badge badge-priority ${e.priority || ''}">${e.priority || '-'}</span></td>
             <td><span class="badge badge-status ${getStatusClass(e.status)}">${e.status || '-'}</span></td>
+            <td>${e.is_human_reviewed ? '🧑 Human' : '🤖 Auto'}</td>
         </tr>
     `).join('');
 }
@@ -330,6 +428,10 @@ async function loadPendingReviews() {
         const res = await fetch(`${API_BASE}/api/reviews/pending`);
         if (!res.ok) throw new Error();
         allReviews = await res.json();
+
+        // Dynamically populate review filters
+        populateFilter('filterReviewReason', allReviews, 'reason', 'All Reasons');
+
         renderReviews();
     } catch {
         container.innerHTML = '<div class="reviews-empty"><p>Failed to load reviews</p></div>';

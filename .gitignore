@@ -1,23 +1,52 @@
-# Environment variables
-.env
+# Virtual Environment
+venv/
+.venv/
+env/
+bin/
+lib/
+share/
+Include/
+Scripts/
+pyvenv.cfg
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-venv/
-.venv/
-env/
-.env/
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Database
-emails.db
-emails.db-journal
-emails.db-shm
-emails.db-wal
+# Database & Data
+*.db
+email_agent.db
+data/faiss_index
+data/kb_documents.json
+data/
 
-# Vector Store
-faiss_index/
+# Environment & Secrets
+.env
+.flaskenv
+*.secret
+api_key.txt
+
+# OS
+.DS_Store
+Thumbs.db
 
 # IDEs
 .vscode/
@@ -25,6 +54,9 @@ faiss_index/
 *.swp
 *.swo
 
-# OS
-.DS_Store
-Thumbs.db
+# Temporary Files
+tmp/
+/tmp/
+diag_langsmith.py
+test_tracing.py
+tmp_check_db.py

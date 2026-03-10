@@ -117,23 +117,29 @@ class DatabaseService(BaseService):
     async def get_stats(self) -> dict:
         """Get system processing statistics."""
         async with async_session() as session:
-            # Note: For simplicity in the demo, we fetch all and count in Python.
-            # In production, use func.count() with group_by in the SQL query.
-            result = await session.execute(select(Email))
-            emails = result.scalars().all()
+            # Total Emails
+            total_res = await session.execute(select(Email))
+            total_count = len(total_res.scalars().all())
             
-            total = len(emails)
-            reviewed = len([e for e in emails if e.status == EmailStatusEnum.REVIEW_PENDING or e.status == EmailStatusEnum.REVIEW_APPROVED])
-            auto = total - reviewed
+            # Reviewed Emails (Any email that was sent to human review queue)
+            # This counts distinct email_ids in the heart of humanity
+            reviewed_res = await session.execute(
+                select(HumanReview.email_id).distinct()
+            )
+            reviewed_count = len(reviewed_res.scalars().all())
             
+            # Auto Response (Everything else)
+            auto_count = total_count - reviewed_count
+            
+            # Follow-ups
             followups_res = await session.execute(select(FollowUp))
-            followups = followups_res.scalars().all()
+            followups_count = len(followups_res.scalars().all())
             
             return {
-                "total": total,
-                "auto": auto,
-                "reviewed": reviewed,
-                "followups": len(followups)
+                "total": total_count,
+                "auto": auto_count,
+                "reviewed": reviewed_count,
+                "followups": followups_count
             }
 
     async def create_response(

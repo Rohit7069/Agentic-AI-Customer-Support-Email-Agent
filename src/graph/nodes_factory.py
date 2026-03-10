@@ -9,6 +9,7 @@ from src.nodes.human_review import human_review_node
 from src.nodes.response_sending import response_sending_node
 from src.nodes.followup_scheduling import followup_scheduling_node
 from src.nodes.error_handler import error_handler_node
+from src.nodes.guardrails import guardrails_node
 
 
 def get_all_nodes() -> dict:
@@ -27,4 +28,5 @@ def get_all_nodes() -> dict:
         "response_sending": response_sending_node,
         "followup_scheduling": followup_scheduling_node,
         "error_handler": error_handler_node,
+        "guardrails": guardrails_node,
     }
